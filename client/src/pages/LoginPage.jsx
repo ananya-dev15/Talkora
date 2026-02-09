@@ -33,8 +33,8 @@ const LoginPage = () => {
                         <LogIn size={32} color="#818cf8" />
                     </div>
                 </div>
-                <h1 className="auth-title">Welcome Back</h1>
-                <p className="auth-subtitle">Log in to your account to continue</p>
+                <h1 className="auth-title">Welcome to Talkora</h1>
+                <p className="auth-subtitle">Log in to your account to start chatting</p>
 
                 {error && <div className="error-message">{error}</div>}
 

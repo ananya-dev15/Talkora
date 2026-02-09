@@ -33,8 +33,8 @@ const SignupPage = () => {
                         <UserPlus size={32} color="#c084fc" />
                     </div>
                 </div>
-                <h1 className="auth-title">Create Account</h1>
-                <p className="auth-subtitle">Join us and start chatting today</p>
+                <h1 className="auth-title">Join Talkora</h1>
+                <p className="auth-subtitle">Create an account and start chatting today</p>
 
                 {error && <div className="error-message">{error}</div>}
 

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { io } from 'socket.io-client';
 import axios from 'axios';
-import { Send, LogOut, User as UserIcon, Hash, Search } from 'lucide-react';
+import { Send, LogOut, User as UserIcon, Hash, Search, Paperclip, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 const ChatRoom = () => {
     const { user, logout } = useAuth();
@@ -12,7 +12,10 @@ const ChatRoom = () => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [socket, setSocket] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [hoveredMessageId, setHoveredMessageId] = useState(null);
     const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -42,6 +45,10 @@ const ChatRoom = () => {
             setMessages((prev) => [...prev, message]);
         });
 
+        newSocket.on('message_deleted', ({ messageId }) => {
+            setMessages((prev) => prev.filter(msg => (msg._id || msg.id) !== messageId));
+        });
+
         return () => newSocket.close();
     }, [user]);
 
@@ -65,6 +72,40 @@ const ChatRoom = () => {
         scrollToBottom();
     }, [messages]);
 
+    const handleFileSelect = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !selectedUser) return;
+
+        setUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadRes = await axios.post('http://localhost:5005/api/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // Send message with media
+            socket.emit('send_message', {
+                senderId: user._id || user.id,
+                recipientId: selectedUser._id || selectedUser.id,
+                text: '',
+                mediaUrl: uploadRes.data.url,
+                mediaType: uploadRes.data.mediaType
+            });
+
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        } catch (err) {
+            console.error('Error uploading file:', err);
+            alert('Failed to upload file. Please try again.');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleSendMessage = (e) => {
         e.preventDefault();
         if (newMessage.trim() && socket && selectedUser) {
@@ -74,6 +115,29 @@ const ChatRoom = () => {
                 text: newMessage
             });
             setNewMessage('');
+        }
+    };
+
+    const handleDeleteMessage = async (messageId) => {
+        if (!window.confirm('Are you sure you want to delete this message?')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`http://localhost:5005/api/messages/${messageId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Emit socket event to notify both users
+            socket.emit('delete_message', {
+                messageId,
+                senderId: user._id || user.id,
+                recipientId: selectedUser._id || selectedUser.id
+            });
+        } catch (err) {
+            console.error('Error deleting message:', err);
+            alert('Failed to delete message. Please try again.');
         }
     };
 
@@ -240,24 +304,86 @@ const ChatRoom = () => {
                                     const currentUserId = user._id || user.id;
                                     const msgSenderId = msg.sender?._id || msg.sender;
                                     const isMe = msgSenderId === currentUserId;
+                                    const messageId = msg._id || msg.id;
+
                                     return (
-                                        <div key={index} style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignSelf: isMe ? 'flex-end' : 'flex-start',
-                                            maxWidth: '70%',
-                                            gap: '4px'
-                                        }}>
+                                        <div
+                                            key={index}
+                                            style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignSelf: isMe ? 'flex-end' : 'flex-start',
+                                                maxWidth: msg.mediaUrl ? '80%' : '70%',
+                                                gap: '4px',
+                                                position: 'relative'
+                                            }}
+                                            onMouseEnter={() => setHoveredMessageId(messageId)}
+                                            onMouseLeave={() => setHoveredMessageId(null)}
+                                        >
                                             <div style={{
-                                                padding: '10px 16px',
+                                                padding: msg.mediaUrl ? '8px' : '10px 16px',
                                                 borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                                                 background: isMe ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
                                                 border: isMe ? 'none' : '1px solid var(--glass-border)',
                                                 color: 'white',
                                                 fontSize: '0.9rem',
-                                                boxShadow: isMe ? '0 4px 15px -3px rgba(99, 102, 241, 0.4)' : 'none'
+                                                boxShadow: isMe ? '0 4px 15px -3px rgba(99, 102, 241, 0.4)' : 'none',
+                                                overflow: 'hidden',
+                                                position: 'relative'
                                             }}>
-                                                {msg.text}
+                                                {msg.mediaUrl && msg.mediaType === 'image' && (
+                                                    <img
+                                                        src={`http://localhost:5005${msg.mediaUrl}`}
+                                                        alt="Shared media"
+                                                        style={{
+                                                            maxWidth: '100%',
+                                                            borderRadius: '12px',
+                                                            display: 'block'
+                                                        }}
+                                                    />
+                                                )}
+                                                {msg.mediaUrl && msg.mediaType === 'video' && (
+                                                    <video
+                                                        src={`http://localhost:5005${msg.mediaUrl}`}
+                                                        controls
+                                                        style={{
+                                                            maxWidth: '100%',
+                                                            borderRadius: '12px',
+                                                            display: 'block'
+                                                        }}
+                                                    />
+                                                )}
+                                                {msg.text && <div style={{ marginTop: msg.mediaUrl ? '8px' : '0' }}>{msg.text}</div>}
+
+                                                {/* Delete button - only show for user's own messages */}
+                                                {isMe && hoveredMessageId === messageId && (
+                                                    <button
+                                                        onClick={() => handleDeleteMessage(messageId)}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: '4px',
+                                                            right: '4px',
+                                                            background: 'rgba(0,0,0,0.3)',
+                                                            border: 'none',
+                                                            borderRadius: '8px',
+                                                            padding: '6px',
+                                                            cursor: 'pointer',
+                                                            color: '#f87171',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            transition: 'all 0.2s ease'
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            e.currentTarget.style.background = 'rgba(0,0,0,0.5)';
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.currentTarget.style.background = 'rgba(0,0,0,0.3)';
+                                                        }}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -271,15 +397,52 @@ const ChatRoom = () => {
                                 borderTop: '1px solid var(--glass-border)',
                                 background: 'rgba(255, 255, 255, 0.02)',
                                 display: 'flex',
-                                gap: '12px'
+                                gap: '12px',
+                                alignItems: 'center'
                             }}>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    accept="image/*,video/*"
+                                    style={{ display: 'none' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploading}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid var(--glass-border)',
+                                        borderRadius: '12px',
+                                        padding: '10px 12px',
+                                        cursor: uploading ? 'not-allowed' : 'pointer',
+                                        color: 'var(--text-secondary)',
+                                        transition: 'all 0.2s ease',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!uploading) {
+                                            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                                            e.currentTarget.style.color = 'white';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                                        e.currentTarget.style.color = 'var(--text-secondary)';
+                                    }}
+                                >
+                                    {uploading ? <ImageIcon size={20} className="spin" /> : <Paperclip size={20} />}
+                                </button>
                                 <input
                                     type="text"
                                     className="form-input"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     placeholder={`Message ${selectedUser.username}...`}
-                                    style={{ background: 'rgba(0,0,0,0.2)' }}
+                                    style={{ background: 'rgba(0,0,0,0.2)', flex: 1 }}
                                 />
                                 <button type="submit" className="auth-button" style={{
                                     width: 'auto',

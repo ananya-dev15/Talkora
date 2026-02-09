@@ -6,6 +6,9 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const http = require('http');
 const { Server } = require('socket.io');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const User = require('./models/User');
 const Message = require('./models/Message');
 require('dotenv').config();
@@ -25,6 +28,41 @@ const MONGODB_URI = process.env.MONGODB_URI;
 
 app.use(cors());
 app.use(express.json());
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir);
+}
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(uploadsDir));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        if (extname && mimetype) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only images and videos are allowed'));
+        }
+    }
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -88,6 +126,26 @@ app.get('/api/me', async (req, res) => {
     }
 });
 
+// Upload endpoint
+app.post('/api/upload', upload.single('file'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        const fileUrl = `/uploads/${req.file.filename}`;
+        const mediaType = req.file.mimetype.startsWith('image') ? 'image' : 'video';
+
+        res.json({
+            url: fileUrl,
+            mediaType: mediaType
+        });
+    } catch (err) {
+        console.error('Upload error:', err);
+        res.status(500).json({ message: 'Error uploading file' });
+    }
+});
+
 // Users list route
 app.get('/api/users', async (req, res) => {
     try {
@@ -114,6 +172,36 @@ app.get('/api/messages/:userId/:recipientId', async (req, res) => {
     }
 });
 
+// Delete message endpoint
+app.delete('/api/messages/:messageId', async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const token = req.headers.authorization?.split(' ')[1];
+
+        if (!token) {
+            return res.status(401).json({ message: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const message = await Message.findById(messageId);
+
+        if (!message) {
+            return res.status(404).json({ message: 'Message not found' });
+        }
+
+        // Verify the user owns this message
+        if (message.sender.toString() !== decoded.id) {
+            return res.status(403).json({ message: 'Not authorized to delete this message' });
+        }
+
+        await Message.findByIdAndDelete(messageId);
+        res.json({ message: 'Message deleted successfully' });
+    } catch (err) {
+        console.error('Delete error:', err);
+        res.status(500).json({ message: 'Error deleting message' });
+    }
+});
+
 // Socket.io Logic
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
@@ -126,11 +214,13 @@ io.on('connection', (socket) => {
 
     socket.on('send_message', async (data) => {
         try {
-            const { senderId, recipientId, text } = data;
+            const { senderId, recipientId, text, mediaUrl, mediaType } = data;
             const newMessage = new Message({
                 sender: senderId,
                 recipient: recipientId,
-                text
+                text: text || '',
+                mediaUrl,
+                mediaType
             });
             await newMessage.save();
 
@@ -139,6 +229,18 @@ io.on('connection', (socket) => {
             io.to(recipientId).emit('receive_message', newMessage);
         } catch (err) {
             console.error('Socket Error:', err);
+        }
+    });
+
+    socket.on('delete_message', async (data) => {
+        try {
+            const { messageId, senderId, recipientId } = data;
+
+            // Notify both users about the deletion
+            io.to(senderId).emit('message_deleted', { messageId });
+            io.to(recipientId).emit('message_deleted', { messageId });
+        } catch (err) {
+            console.error('Delete Socket Error:', err);
         }
     });
 

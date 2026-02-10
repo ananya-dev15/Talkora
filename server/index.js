@@ -51,16 +51,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit for all file types
     fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        if (extname && mimetype) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only images and videos are allowed'));
-        }
+        // Accept all file types
+        cb(null, true);
     }
 });
 
@@ -134,11 +128,35 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         }
 
         const fileUrl = `/uploads/${req.file.filename}`;
-        const mediaType = req.file.mimetype.startsWith('image') ? 'image' : 'video';
+        const mimetype = req.file.mimetype;
+
+        // Determine file type based on MIME type
+        let mediaType = 'other';
+        if (mimetype.startsWith('image/')) {
+            mediaType = 'image';
+        } else if (mimetype.startsWith('video/')) {
+            mediaType = 'video';
+        } else if (mimetype.startsWith('audio/')) {
+            mediaType = 'audio';
+        } else if (mimetype === 'application/pdf') {
+            mediaType = 'pdf';
+        } else if (
+            mimetype.includes('document') ||
+            mimetype.includes('word') ||
+            mimetype.includes('excel') ||
+            mimetype.includes('powerpoint') ||
+            mimetype.includes('spreadsheet') ||
+            mimetype.includes('presentation') ||
+            mimetype.includes('text/')
+        ) {
+            mediaType = 'document';
+        }
 
         res.json({
             url: fileUrl,
-            mediaType: mediaType
+            mediaType: mediaType,
+            fileName: req.file.originalname,
+            fileSize: req.file.size
         });
     } catch (err) {
         console.error('Upload error:', err);
@@ -164,7 +182,8 @@ app.get('/api/messages/:userId/:recipientId', async (req, res) => {
             $or: [
                 { sender: userId, recipient: recipientId },
                 { sender: recipientId, recipient: userId }
-            ]
+            ],
+            deletedFor: { $ne: userId }
         }).sort({ createdAt: 1 }).limit(100);
         res.json(messages);
     } catch (err) {
@@ -189,13 +208,24 @@ app.delete('/api/messages/:messageId', async (req, res) => {
             return res.status(404).json({ message: 'Message not found' });
         }
 
-        // Verify the user owns this message
-        if (message.sender.toString() !== decoded.id) {
-            return res.status(403).json({ message: 'Not authorized to delete this message' });
-        }
+        const { type } = req.query;
 
-        await Message.findByIdAndDelete(messageId);
-        res.json({ message: 'Message deleted successfully' });
+        // different logic based on deletion type
+        if (type === 'everyone') {
+            // Verify the user owns this message
+            if (message.sender.toString() !== decoded.id) {
+                return res.status(403).json({ message: 'Not authorized to delete this message for everyone' });
+            }
+            await Message.findByIdAndDelete(messageId);
+            res.json({ message: 'Message deleted for everyone', type: 'everyone' });
+        } else {
+            // Delete for me
+            if (!message.deletedFor.includes(decoded.id)) {
+                message.deletedFor.push(decoded.id);
+                await message.save();
+            }
+            res.json({ message: 'Message deleted for you', type: 'me' });
+        }
     } catch (err) {
         console.error('Delete error:', err);
         res.status(500).json({ message: 'Error deleting message' });
@@ -214,13 +244,15 @@ io.on('connection', (socket) => {
 
     socket.on('send_message', async (data) => {
         try {
-            const { senderId, recipientId, text, mediaUrl, mediaType } = data;
+            const { senderId, recipientId, text, mediaUrl, mediaType, fileName, fileSize } = data;
             const newMessage = new Message({
                 sender: senderId,
                 recipient: recipientId,
                 text: text || '',
                 mediaUrl,
-                mediaType
+                mediaType,
+                fileName,
+                fileSize
             });
             await newMessage.save();
 

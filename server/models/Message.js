@@ -21,8 +21,18 @@ const messageSchema = new mongoose.Schema({
     },
     mediaType: {
         type: String,
-        enum: ['image', 'video']
-    }
+        enum: ['image', 'video', 'audio', 'document', 'pdf', 'other']
+    },
+    fileName: {
+        type: String
+    },
+    fileSize: {
+        type: Number
+    },
+    deletedFor: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 }, {
     timestamps: true
 });

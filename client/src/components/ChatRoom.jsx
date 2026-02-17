@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { io } from 'socket.io-client';
 import axios from 'axios';
-import { Send, LogOut, User as UserIcon, Hash, Search, Paperclip, Image as ImageIcon, Trash2, FileText, File as FileIcon, Music, Video, Download, Mic, Square, X, Camera } from 'lucide-react';
+import { Send, LogOut, User as UserIcon, Hash, Search, Paperclip, Image as ImageIcon, Trash2, FileText, File as FileIcon, Music, Video, Download, Mic, Square, X, Camera, Check, CheckCheck } from 'lucide-react';
 
 const ChatRoom = () => {
     const { user, logout } = useAuth();
@@ -79,7 +79,25 @@ const ChatRoom = () => {
         fetchUsers();
 
         newSocket.on('receive_message', (message) => {
-            setMessages((prev) => [...prev, message]);
+            setMessages((prev) => {
+                // If the message is from the currently selected user, mark it as read immediately
+                if (selectedUser && (message.sender === (selectedUser._id || selectedUser.id) || message.sender._id === (selectedUser._id || selectedUser.id))) {
+                    newSocket.emit('mark_messages_read', {
+                        senderId: selectedUser._id || selectedUser.id,
+                        recipientId: user._id || user.id
+                    });
+                }
+                return [...prev, message];
+            });
+        });
+
+        newSocket.on('messages_read', ({ recipientId }) => {
+            setMessages(prev => prev.map(msg => {
+                if ((msg.recipient === recipientId || msg.recipient?._id === recipientId) && msg.status !== 'read') {
+                    return { ...msg, status: 'read' };
+                }
+                return msg;
+            }));
         });
 
         newSocket.on('message_deleted', ({ messageId }) => {
@@ -98,6 +116,19 @@ const ChatRoom = () => {
                 try {
                     const res = await axios.get(`http://localhost:5005/api/messages/${user._id || user.id}/${selectedUser._id || selectedUser.id}`);
                     setMessages(res.data);
+
+                    // Mark messages as read when opening chat
+                    const unreadMessages = res.data.filter(msg =>
+                        (msg.sender === (selectedUser._id || selectedUser.id) || msg.sender._id === (selectedUser._id || selectedUser.id)) &&
+                        msg.status !== 'read'
+                    );
+
+                    if (unreadMessages.length > 0) {
+                        newSocket.emit('mark_messages_read', {
+                            senderId: selectedUser._id || selectedUser.id,
+                            recipientId: user._id || user.id
+                        });
+                    }
                 } catch (err) {
                     console.error('Error fetching history:', err);
                 }
@@ -770,6 +801,22 @@ const ChatRoom = () => {
                                                 position: 'relative'
                                             }}>
                                                 {renderFileContent(msg, isMe)}
+
+                                                {/* Read Receipts */}
+                                                {isMe && (
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'flex-end',
+                                                        marginTop: '2px',
+                                                        opacity: 0.8
+                                                    }}>
+                                                        {msg.status === 'read' ? (
+                                                            <CheckCheck size={14} color="#4ade80" /> // Double green tick
+                                                        ) : (
+                                                            <Check size={14} color="white" /> // Single white tick
+                                                        )}
+                                                    </div>
+                                                )}
 
                                                 {/* Delete button */}
                                                 {isMe && hoveredMessageId === messageId && (

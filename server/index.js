@@ -264,6 +264,20 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('mark_messages_read', async ({ senderId, recipientId }) => {
+        try {
+            await Message.updateMany(
+                { sender: senderId, recipient: recipientId, status: { $ne: 'read' } },
+                { $set: { status: 'read' } }
+            );
+
+            // Notify the sender that their messages have been read
+            io.to(senderId).emit('messages_read', { recipientId });
+        } catch (err) {
+            console.error('Mark Read Error:', err);
+        }
+    });
+
     socket.on('delete_message', async (data) => {
         try {
             const { messageId, senderId, recipientId } = data;

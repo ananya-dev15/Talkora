@@ -3,7 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { io } from 'socket.io-client';
 import axios from 'axios';
-import { Send, LogOut, User as UserIcon, Hash, Search, Paperclip, Image as ImageIcon, Trash2, FileText, File as FileIcon, Music, Video, Download, Mic, Square, X, Camera, Check, CheckCheck } from 'lucide-react';
+import { Send, LogOut, User as UserIcon, Hash, Search, Paperclip, Image as ImageIcon, Trash2, FileText, File as FileIcon, Music, Video, Download, Mic, Square, X, Camera, Check, CheckCheck, Coffee } from 'lucide-react';
+import coffeeSplash from '../assets/coffee_splash.png';
+
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5005' : window.location.origin);
 
 const ChatRoom = () => {
     const { user, logout } = useAuth();
@@ -60,7 +63,7 @@ const ChatRoom = () => {
     };
 
     useEffect(() => {
-        const newSocket = io('http://localhost:5005');
+        const newSocket = io(API_URL);
         setSocket(newSocket);
 
         if (user) {
@@ -70,7 +73,7 @@ const ChatRoom = () => {
         // Fetch users list
         const fetchUsers = async () => {
             try {
-                const res = await axios.get('http://localhost:5005/api/users');
+                const res = await axios.get(`${API_URL}/api/users`);
                 setUsers(res.data.filter(u => (u._id || u.id) !== (user._id || user.id)));
             } catch (err) {
                 console.error('Error fetching users:', err);
@@ -114,7 +117,7 @@ const ChatRoom = () => {
         if (selectedUser) {
             const fetchMessages = async () => {
                 try {
-                    const res = await axios.get(`http://localhost:5005/api/messages/${user._id || user.id}/${selectedUser._id || selectedUser.id}`);
+                    const res = await axios.get(`${API_URL}/api/messages/${user._id || user.id}/${selectedUser._id || selectedUser.id}`);
                     setMessages(res.data);
 
                     // Mark messages as read when opening chat
@@ -247,7 +250,7 @@ const ChatRoom = () => {
             const file = new File([audioBlob], `voice-message-${Date.now()}.${extension}`, { type: mimeType });
             formData.append('file', file);
 
-            const uploadRes = await axios.post('http://localhost:5005/api/upload', formData, {
+            const uploadRes = await axios.post(`${API_URL}/api/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -379,7 +382,7 @@ const ChatRoom = () => {
             const file = new File([blobToUpload], fileName, { type: mimeType });
             formData.append('file', file);
 
-            const uploadRes = await axios.post('http://localhost:5005/api/upload', formData, {
+            const uploadRes = await axios.post(`${API_URL}/api/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -410,7 +413,7 @@ const ChatRoom = () => {
             const formData = new FormData();
             formData.append('file', file);
 
-            const uploadRes = await axios.post('http://localhost:5005/api/upload', formData, {
+            const uploadRes = await axios.post(`${API_URL}/api/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -460,7 +463,7 @@ const ChatRoom = () => {
             const token = localStorage.getItem('token');
             const messageId = messageToDelete._id || messageToDelete.id;
 
-            await axios.delete(`http://localhost:5005/api/messages/${messageId}?type=${type}`, {
+            await axios.delete(`${API_URL}/api/messages/${messageId}?type=${type}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -485,7 +488,7 @@ const ChatRoom = () => {
     };
 
     const renderFileContent = (msg, isMe) => {
-        const baseUrl = 'http://localhost:5005';
+        const baseUrl = API_URL;
 
         if (!msg.mediaUrl) {
             return <div>{msg.text}</div>;
@@ -533,19 +536,19 @@ const ChatRoom = () => {
                             <div style={{
                                 padding: '8px',
                                 borderRadius: '50%',
-                                background: 'rgba(255,255,255,0.1)'
+                                background: isMe ? 'rgba(255,255,255,0.1)' : 'rgba(92, 61, 46, 0.1)'
                             }}>
-                                <Mic size={16} />
+                                <Mic size={16} color={isMe ? 'white' : 'var(--primary)'} />
                             </div>
-                            <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{msg.fileName || 'Voice Message'}</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: '600', color: isMe ? 'white' : 'var(--text-primary)' }}>{msg.fileName || 'Voice Message'}</span>
                         </div>
                         <audio
                             src={fileUrl}
                             controls
                             style={{ width: '100%', height: '32px' }}
                         />
-                        {msg.fileSize && <div style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '4px' }}>{formatFileSize(msg.fileSize)}</div>}
-                        {msg.text && <div style={{ marginTop: '4px' }}>{msg.text}</div>}
+                        {msg.fileSize && <div style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '4px', color: isMe ? 'white' : 'var(--text-secondary)' }}>{formatFileSize(msg.fileSize)}</div>}
+                        {msg.text && <div style={{ marginTop: '4px', color: isMe ? 'white' : 'var(--text-primary)' }}>{msg.text}</div>}
                     </div>
                 );
 
@@ -561,19 +564,19 @@ const ChatRoom = () => {
                             alignItems: 'center',
                             gap: '12px',
                             padding: '12px',
-                            background: isMe ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.05)',
+                            background: isMe ? 'rgba(0,0,0,0.15)' : 'rgba(92, 61, 46, 0.05)',
                             borderRadius: '10px',
                             textDecoration: 'none',
-                            color: 'white',
+                            color: isMe ? 'white' : 'var(--text-primary)',
                             minWidth: '250px'
                         }}
                     >
-                        <FileText size={32} />
+                        <FileText size={32} color={isMe ? 'white' : 'var(--primary)'} />
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>{msg.fileName || 'Document.pdf'}</div>
                             {msg.fileSize && <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{formatFileSize(msg.fileSize)}</div>}
                         </div>
-                        <Download size={20} />
+                        <Download size={20} color={isMe ? 'white' : 'var(--primary)'} />
                     </a>
                 );
 
@@ -590,19 +593,19 @@ const ChatRoom = () => {
                             alignItems: 'center',
                             gap: '12px',
                             padding: '12px',
-                            background: isMe ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.05)',
+                            background: isMe ? 'rgba(0,0,0,0.15)' : 'rgba(92, 61, 46, 0.05)',
                             borderRadius: '10px',
                             textDecoration: 'none',
-                            color: 'white',
+                            color: isMe ? 'white' : 'var(--text-primary)',
                             minWidth: '250px'
                         }}
                     >
-                        <FileIcon size={32} />
+                        <FileIcon size={32} color={isMe ? 'white' : 'var(--primary)'} />
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>{msg.fileName || 'File'}</div>
                             {msg.fileSize && <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{formatFileSize(msg.fileSize)}</div>}
                         </div>
-                        <Download size={20} />
+                        <Download size={20} color={isMe ? 'white' : 'var(--primary)'} />
                     </a>
                 );
 
@@ -628,30 +631,38 @@ const ChatRoom = () => {
         <div className="auth-container" style={{ padding: '0', background: 'transparent' }}>
             <div className="glass-card" style={{
                 maxWidth: '1200px',
+                width: '95%',
                 height: '85vh',
                 display: 'flex',
                 flexDirection: 'row',
                 padding: '0',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                background: 'var(--bg-cream)',
+                border: '2px solid var(--border-tan)',
+                boxShadow: '0 24px 60px -15px rgba(92, 61, 46, 0.12)',
+                borderRadius: '24px'
             }}>
                 {/* Sidebar */}
                 <div style={{
                     width: '320px',
-                    borderRight: '1px solid var(--glass-border)',
+                    borderRight: '2px solid var(--border-tan)',
                     display: 'flex',
                     flexDirection: 'column',
-                    background: 'rgba(255, 255, 255, 0.03)'
+                    background: 'var(--bg-sidebar)'
                 }}>
-                    <div style={{ padding: '24px', borderBottom: '1px solid var(--glass-border)' }}>
+                    <div style={{ padding: '24px', borderBottom: '2px solid var(--border-tan)', background: 'rgba(92, 61, 46, 0.02)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                             <div style={{
-                                background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                                background: 'var(--primary)',
                                 padding: '8px',
-                                borderRadius: '10px'
+                                borderRadius: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}>
-                                <Hash size={18} color="white" />
+                                <Coffee size={18} color="var(--text-light)" />
                             </div>
-                            <h2 style={{ margin: '0', fontSize: '1.1rem', fontWeight: '700' }}>Messages</h2>
+                            <h2 style={{ margin: '0', fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-brand)', color: 'var(--primary)' }}>CupfulCanvas</h2>
                         </div>
                         <div style={{ position: 'relative' }}>
                             <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
@@ -660,13 +671,17 @@ const ChatRoom = () => {
                                 placeholder="Search users..."
                                 style={{
                                     width: '100%',
-                                    background: 'rgba(0,0,0,0.2)',
-                                    border: '1px solid var(--glass-border)',
-                                    borderRadius: '10px',
-                                    padding: '8px 12px 8px 36px',
+                                    background: '#ffffff',
+                                    border: '2px solid var(--border-tan)',
+                                    borderRadius: '12px',
+                                    padding: '10px 12px 10px 38px',
                                     fontSize: '0.85rem',
-                                    color: 'white'
+                                    color: 'var(--text-primary)',
+                                    outline: 'none',
+                                    transition: 'all 0.2s'
                                 }}
+                                onFocus={(e) => { e.target.style.borderColor = 'var(--primary)'; }}
+                                onBlur={(e) => { e.target.style.borderColor = 'var(--border-tan)'; }}
                             />
                         </div>
                     </div>
@@ -677,87 +692,103 @@ const ChatRoom = () => {
                                 onClick={() => setSelectedUser(u)}
                                 style={{
                                     padding: '12px 16px',
-                                    borderRadius: '12px',
+                                    borderRadius: '14px',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '12px',
-                                    marginBottom: '4px',
+                                    marginBottom: '6px',
                                     transition: 'all 0.2s ease',
-                                    background: selectedUser?._id === u._id ? 'rgba(255,255,255,0.08)' : 'transparent',
-                                    border: selectedUser?._id === u._id ? '1px solid var(--glass-border)' : '1px solid transparent'
+                                    background: (selectedUser?._id === u._id || selectedUser?.id === u.id) ? 'var(--card-tan)' : 'transparent',
+                                    border: (selectedUser?._id === u._id || selectedUser?.id === u.id) ? '2px solid var(--border-tan)' : '2px solid transparent'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (selectedUser?._id !== u._id && selectedUser?.id !== u.id) {
+                                        e.currentTarget.style.background = 'rgba(237, 224, 212, 0.4)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (selectedUser?._id !== u._id && selectedUser?.id !== u.id) {
+                                        e.currentTarget.style.background = 'transparent';
+                                    }
                                 }}
                             >
                                 <div style={{
-                                    width: '40px',
-                                    height: '40px',
+                                    width: '42px',
+                                    height: '42px',
                                     borderRadius: '50%',
-                                    background: 'rgba(255,255,255,0.1)',
+                                    background: (selectedUser?._id === u._id || selectedUser?.id === u.id) ? 'var(--primary)' : 'var(--border-tan)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: 'var(--primary)'
+                                    color: (selectedUser?._id === u._id || selectedUser?.id === u.id) ? 'white' : 'var(--primary)',
+                                    fontWeight: '700',
+                                    fontSize: '0.95rem'
                                 }}>
-                                    <UserIcon size={20} />
+                                    {u.username[0].toUpperCase()}
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>{u.username}</div>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>{u.username}</div>
                                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Click to chat</div>
                                 </div>
                             </div>
                         ))}
                     </div>
-                    <div style={{ padding: '20px', borderTop: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ padding: '20px', borderTop: '2px solid var(--border-tan)', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(92, 61, 46, 0.02)' }}>
                         <div style={{
-                            width: '32px',
-                            height: '32px',
+                            width: '36px',
+                            height: '36px',
                             borderRadius: '50%',
                             background: 'var(--primary)',
+                            color: 'white',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '0.8rem',
+                            fontSize: '0.9rem',
                             fontWeight: 'bold'
                         }}>
                             {user?.username[0].toUpperCase()}
                         </div>
                         <div style={{ flex: 1, overflow: 'hidden' }}>
-                            <div style={{ fontSize: '0.85rem', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.username}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#10b981' }}>Online</div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.username}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }} /> Online
+                            </div>
                         </div>
-                        <button onClick={logout} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
-                            <LogOut size={16} />
+                        <button onClick={logout} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'transform 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.transform='scale(1.1)'} onMouseLeave={(e)=>e.currentTarget.style.transform='scale(1)'}>
+                            <LogOut size={18} />
                         </button>
                     </div>
                 </div>
 
                 {/* Chat Area */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-cream)' }}>
                     {selectedUser ? (
                         <>
                             {/* Header */}
                             <div style={{
                                 padding: '20px 30px',
-                                borderBottom: '1px solid var(--glass-border)',
+                                borderBottom: '2px solid var(--border-tan)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '12px',
-                                background: 'rgba(255, 255, 255, 0.02)'
+                                background: 'var(--bg-sidebar)'
                             }}>
                                 <div style={{
                                     width: '40px',
                                     height: '40px',
                                     borderRadius: '50%',
-                                    background: 'rgba(255,255,255,0.05)',
-                                    border: '1px solid var(--glass-border)',
+                                    background: 'var(--primary)',
+                                    border: '1.5px solid var(--border-tan)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: 'var(--primary)'
+                                    color: 'white',
+                                    fontWeight: '700'
                                 }}>
-                                    <UserIcon size={20} />
+                                    {selectedUser.username[0].toUpperCase()}
                                 </div>
-                                <h2 style={{ margin: '0', fontSize: '1.1rem', fontWeight: '700' }}>{selectedUser.username}</h2>
+                                <h2 style={{ margin: '0', fontSize: '1.2rem', fontWeight: '800', color: 'var(--primary)', fontFamily: 'var(--font-brand)' }}>{selectedUser.username}</h2>
                             </div>
 
                             {/* Messages Area */}
@@ -790,13 +821,13 @@ const ChatRoom = () => {
                                             onMouseLeave={() => setHoveredMessageId(null)}
                                         >
                                             <div style={{
-                                                padding: msg.mediaUrl && (msg.mediaType === 'image' || msg.mediaType === 'video') ? '8px' : '10px 16px',
+                                                padding: msg.mediaUrl && (msg.mediaType === 'image' || msg.mediaType === 'video') ? '8px' : '12px 18px',
                                                 borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                                                background: isMe ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
-                                                border: isMe ? 'none' : '1px solid var(--glass-border)',
-                                                color: 'white',
-                                                fontSize: '0.9rem',
-                                                boxShadow: isMe ? '0 4px 15px -3px rgba(99, 102, 241, 0.4)' : 'none',
+                                                background: isMe ? 'var(--bubble-outgoing)' : 'var(--bubble-incoming)',
+                                                border: isMe ? 'none' : '1.5px solid var(--border-tan)',
+                                                color: isMe ? 'var(--text-light)' : 'var(--text-primary)',
+                                                fontSize: '0.95rem',
+                                                boxShadow: isMe ? '0 4px 12px rgba(92, 61, 46, 0.12)' : 'none',
                                                 overflow: 'hidden',
                                                 position: 'relative'
                                             }}>
@@ -811,9 +842,9 @@ const ChatRoom = () => {
                                                         opacity: 0.8
                                                     }}>
                                                         {msg.status === 'read' ? (
-                                                            <CheckCheck size={14} color="#4ade80" /> // Double green tick
+                                                            <CheckCheck size={14} color="#ddb892" /> // Latte/tan checkmarks
                                                         ) : (
-                                                            <Check size={14} color="white" /> // Single white tick
+                                                            <Check size={14} color="rgba(255,255,255,0.6)" /> // Single tick
                                                         )}
                                                     </div>
                                                 )}
@@ -857,8 +888,8 @@ const ChatRoom = () => {
                             {/* Message Input */}
                             <div style={{
                                 padding: '24px 30px',
-                                borderTop: '1px solid var(--glass-border)',
-                                background: 'rgba(255, 255, 255, 0.02)',
+                                borderTop: '2px solid var(--border-tan)',
+                                background: 'var(--bg-sidebar)',
                                 display: 'flex',
                                 gap: '12px',
                                 alignItems: 'center'
@@ -869,8 +900,8 @@ const ChatRoom = () => {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '12px',
-                                        background: 'rgba(239, 68, 68, 0.1)',
-                                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                                        background: 'rgba(239, 68, 68, 0.06)',
+                                        border: '1px solid rgba(239, 68, 68, 0.15)',
                                         borderRadius: '12px',
                                         padding: '10px 20px',
                                         height: '46px'
@@ -931,12 +962,12 @@ const ChatRoom = () => {
                                             onClick={() => fileInputRef.current?.click()}
                                             disabled={uploading}
                                             style={{
-                                                background: 'rgba(255,255,255,0.05)',
-                                                border: '1px solid var(--glass-border)',
+                                                background: '#ffffff',
+                                                border: '1.5px solid var(--border-tan)',
                                                 borderRadius: '12px',
                                                 padding: '10px 12px',
                                                 cursor: uploading ? 'not-allowed' : 'pointer',
-                                                color: 'var(--text-secondary)',
+                                                color: 'var(--primary)',
                                                 transition: 'all 0.2s ease',
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -944,13 +975,11 @@ const ChatRoom = () => {
                                             }}
                                             onMouseEnter={(e) => {
                                                 if (!uploading) {
-                                                    e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                                                    e.currentTarget.style.color = 'white';
+                                                    e.currentTarget.style.background = 'var(--card-tan)';
                                                 }
                                             }}
                                             onMouseLeave={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                                                e.currentTarget.style.color = 'var(--text-secondary)';
+                                                e.currentTarget.style.background = '#ffffff';
                                             }}
                                         >
                                             {uploading ? <ImageIcon size={20} className="spin" /> : <Paperclip size={20} />}
@@ -960,24 +989,22 @@ const ChatRoom = () => {
                                             type="button"
                                             onClick={startCamera}
                                             style={{
-                                                background: 'rgba(255,255,255,0.05)',
-                                                border: '1px solid var(--glass-border)',
+                                                background: '#ffffff',
+                                                border: '1.5px solid var(--border-tan)',
                                                 borderRadius: '12px',
                                                 padding: '10px 12px',
                                                 cursor: 'pointer',
-                                                color: 'var(--text-secondary)',
+                                                color: 'var(--primary)',
                                                 transition: 'all 0.2s ease',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center'
                                             }}
                                             onMouseEnter={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                                                e.currentTarget.style.color = 'white';
+                                                e.currentTarget.style.background = 'var(--card-tan)';
                                             }}
                                             onMouseLeave={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                                                e.currentTarget.style.color = 'var(--text-secondary)';
+                                                e.currentTarget.style.background = '#ffffff';
                                             }}
                                             title="Camera"
                                         >
@@ -987,24 +1014,22 @@ const ChatRoom = () => {
                                             type="button"
                                             onClick={startRecording}
                                             style={{
-                                                background: 'rgba(255,255,255,0.05)',
-                                                border: '1px solid var(--glass-border)',
+                                                background: '#ffffff',
+                                                border: '1.5px solid var(--border-tan)',
                                                 borderRadius: '12px',
                                                 padding: '10px 12px',
                                                 cursor: 'pointer',
-                                                color: 'var(--text-secondary)',
+                                                color: 'var(--primary)',
                                                 transition: 'all 0.2s ease',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center'
                                             }}
                                             onMouseEnter={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                                                e.currentTarget.style.color = 'white';
+                                                e.currentTarget.style.background = 'var(--card-tan)';
                                             }}
                                             onMouseLeave={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                                                e.currentTarget.style.color = 'var(--text-secondary)';
+                                                e.currentTarget.style.background = '#ffffff';
                                             }}
                                         >
                                             <Mic size={20} />
@@ -1016,27 +1041,65 @@ const ChatRoom = () => {
                                             value={newMessage}
                                             onChange={(e) => setNewMessage(e.target.value)}
                                             placeholder={`Message ${selectedUser.username}...`}
-                                            style={{ background: 'rgba(0,0,0,0.2)', flex: 1 }}
+                                            style={{ background: '#ffffff', border: '2px solid var(--border-tan)', flex: 1 }}
                                         />
                                         <button type="submit" className="auth-button" style={{
                                             width: 'auto',
                                             padding: '0 20px',
-                                            marginTop: '0'
+                                            marginTop: '0',
+                                            height: '48px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            boxShadow: 'none'
                                         }}>
-                                            <Send size={20} />
+                                            <Send size={18} />
                                         </button>
                                     </form>
                                 )}
                             </div>
                         </>
                     ) : (
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', gap: '16px' }}>
-                            <div style={{ padding: '20px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)' }}>
-                                <Hash size={48} />
-                            </div>
-                            <div style={{ textAlign: 'center' }}>
-                                <h3 style={{ color: 'white', margin: '0 0 8px 0' }}>Welcome to Talkora</h3>
-                                <p style={{ margin: 0, fontSize: '0.9rem' }}>Select a user from the sidebar to start chatting</p>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', gap: '20px', background: 'var(--bg-cream)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '360px', textAlign: 'center', padding: '20px' }}>
+                                <img 
+                                    src={coffeeSplash} 
+                                    alt="CupfulCanvas Splash" 
+                                    style={{ 
+                                        width: '180px', 
+                                        height: '180px', 
+                                        objectFit: 'contain',
+                                        filter: 'drop-shadow(0 12px 24px rgba(92, 61, 46, 0.1))',
+                                        marginBottom: '10px'
+                                    }} 
+                                />
+                                <h2 style={{ 
+                                    fontFamily: 'var(--font-brand)', 
+                                    color: 'var(--primary)', 
+                                    fontSize: '2.5rem', 
+                                    margin: '0 0 4px 0',
+                                    fontWeight: '800'
+                                }}>
+                                    CupfulCanvas
+                                </h2>
+                                <p style={{ 
+                                    fontSize: '0.95rem', 
+                                    color: 'var(--text-secondary)', 
+                                    margin: '0 0 24px 0',
+                                    fontStyle: 'italic'
+                                }}>
+                                    Sip. Smile. Create.
+                                </p>
+                                <div style={{ 
+                                    borderTop: '1.5px solid var(--border-tan)', 
+                                    width: '100%', 
+                                    paddingTop: '20px',
+                                    fontSize: '0.9rem',
+                                    color: 'var(--text-secondary)',
+                                    fontWeight: 500
+                                }}>
+                                    Select a contact from the sidebar to share stories over coffee.
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1050,7 +1113,7 @@ const ChatRoom = () => {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    background: 'rgba(0,0,0,0.7)',
+                    background: 'rgba(0,0,0,0.5)',
                     zIndex: 1100,
                     display: 'flex',
                     alignItems: 'center',
@@ -1059,26 +1122,28 @@ const ChatRoom = () => {
                     <div className="glass-card" style={{
                         width: '90%',
                         maxWidth: '400px',
-                        padding: '24px',
+                        padding: '28px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '20px',
-                        background: '#1e1e1e',
-                        border: '1px solid var(--glass-border)'
+                        background: 'var(--bg-cream)',
+                        border: '2px solid var(--border-tan)',
+                        borderRadius: '24px',
+                        boxShadow: '0 20px 40px rgba(92, 61, 46, 0.15)'
                     }}>
-                        <h3 style={{ margin: 0, color: 'white', textAlign: 'center' }}>Delete Message?</h3>
-                        <div style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.9rem' }}>
+                        <h3 style={{ margin: 0, color: 'var(--text-primary)', textAlign: 'center', fontFamily: 'var(--font-brand)', fontSize: '1.5rem' }}>Delete Message?</h3>
+                        <div style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.95rem' }}>
                             Choose how you want to delete this message.
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {/* Only show delete for everybody if I am the sender */}
                             {(messageToDelete.sender._id || messageToDelete.sender) === (user._id || user.id) && (
                                 <button
                                     onClick={() => confirmDelete('everyone')}
                                     style={{
                                         padding: '12px',
-                                        borderRadius: '10px',
+                                        borderRadius: '12px',
                                         border: 'none',
                                         background: 'rgba(239, 68, 68, 0.1)',
                                         color: '#ef4444',
@@ -1101,16 +1166,16 @@ const ChatRoom = () => {
                                 onClick={() => confirmDelete('me')}
                                 style={{
                                     padding: '12px',
-                                    borderRadius: '10px',
-                                    border: '1px solid var(--glass-border)',
-                                    background: 'transparent',
-                                    color: 'white',
-                                    fontWeight: '500',
+                                    borderRadius: '12px',
+                                    border: '2px solid var(--border-tan)',
+                                    background: '#ffffff',
+                                    color: 'var(--text-primary)',
+                                    fontWeight: '600',
                                     cursor: 'pointer',
                                     transition: 'background 0.2s'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-sidebar)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
                             >
                                 Delete for Me
                             </button>
@@ -1119,11 +1184,11 @@ const ChatRoom = () => {
                                 onClick={() => setShowDeleteModal(false)}
                                 style={{
                                     padding: '12px',
-                                    borderRadius: '10px',
+                                    borderRadius: '12px',
                                     border: 'none',
                                     background: 'transparent',
                                     color: 'var(--text-secondary)',
-                                    fontWeight: '500',
+                                    fontWeight: '600',
                                     cursor: 'pointer'
                                 }}
                             >
@@ -1334,7 +1399,7 @@ const ChatRoom = () => {
                                             padding: '12px 24px',
                                             borderRadius: '12px',
                                             border: 'none',
-                                            background: '#6366f1',
+                                            background: 'var(--primary)',
                                             color: 'white',
                                             fontWeight: '600',
                                             cursor: uploading ? 'not-allowed' : 'pointer',

@@ -11,20 +11,33 @@ const path = require('path');
 const fs = require('fs');
 const User = require('./models/User');
 const Message = require('./models/Message');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const server = http.createServer(app);
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: (origin, callback) => {
+            // Allow same-origin (origin is undefined), configured CLIENT_URL, local dev, or any origin in production if CLIENT_URL is not set
+            if (!origin || 
+                origin === CLIENT_URL || 
+                origin.startsWith('http://localhost:') || 
+                origin.startsWith('http://127.0.0.1:') || 
+                !process.env.CLIENT_URL) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: ["GET", "POST"]
     }
 });
 
 const PORT = process.env.PORT || 5005;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/chatapp';
 
 app.use(cors());
 app.use(express.json());
@@ -294,6 +307,19 @@ io.on('connection', (socket) => {
         console.log('User disconnected');
     });
 });
+
+// Serve static client files in production
+if (process.env.NODE_ENV === 'production') {
+    const clientBuildPath = path.join(__dirname, '../client/dist');
+    app.use(express.static(clientBuildPath));
+    
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+            return next();
+        }
+        res.sendFile(path.join(clientBuildPath, 'index.html'));
+    });
+}
 
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus } from 'lucide-react';
+import coffeeSplash from '../assets/coffee_splash.png';
 
 const SignupPage = () => {
     const [username, setUsername] = useState('');
@@ -27,20 +27,31 @@ const SignupPage = () => {
 
     return (
         <div className="auth-container">
-            <div className="glass-card">
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-                    <div style={{ background: 'rgba(192, 132, 252, 0.1)', padding: '12px', borderRadius: '16px' }}>
-                        <UserPlus size={32} color="#c084fc" />
-                    </div>
+            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+                    <img 
+                        src={coffeeSplash} 
+                        alt="CupfulCanvas Logo" 
+                        style={{ 
+                            width: '140px', 
+                            height: '140px', 
+                            objectFit: 'contain',
+                            filter: 'drop-shadow(0 8px 16px rgba(92, 61, 46, 0.12))',
+                            borderRadius: '50%'
+                        }} 
+                    />
                 </div>
-                <h1 className="auth-title">Join Talkora</h1>
-                <p className="auth-subtitle">Create an account and start chatting today</p>
+                
+                <h1 className="auth-title" style={{ fontSize: '2.1rem', margin: '4px 0' }}>Join CupfulCanvas</h1>
+                <p className="auth-subtitle" style={{ fontSize: '0.85rem', margin: '0 0 24px 0', fontStyle: 'italic' }}>
+                    Sip. Smile. Create.
+                </p>
 
                 {error && <div className="error-message">{error}</div>}
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label className="form-label">Username</label>
+                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Username</label>
                         <input
                             type="text"
                             className="form-input"
@@ -50,8 +61,8 @@ const SignupPage = () => {
                             required
                         />
                     </div>
-                    <div className="form-group">
-                        <label className="form-label">Password</label>
+                    <div className="form-group" style={{ marginBottom: '24px' }}>
+                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Password</label>
                         <input
                             type="password"
                             className="form-input"
@@ -61,12 +72,12 @@ const SignupPage = () => {
                             required
                         />
                     </div>
-                    <button type="submit" className="auth-button" style={{ background: 'linear-gradient(to right, #6366f1, #a855f7)' }} disabled={loading}>
+                    <button type="submit" className="auth-button" disabled={loading}>
                         {loading ? 'Creating account...' : 'Create Account'}
                     </button>
                 </form>
 
-                <div className="auth-footer">
+                <div className="auth-footer" style={{ marginTop: '20px' }}>
                     Already have an account?
                     <Link to="/login" className="auth-link">Log in</Link>
                 </div>

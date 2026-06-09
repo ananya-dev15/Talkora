@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5005' : window.location.origin);
+
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
@@ -22,7 +24,7 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async () => {
         try {
-            const res = await axios.get('http://localhost:5005/api/me');
+            const res = await axios.get(`${API_URL}/api/me`);
             setUser(res.data.user);
         } catch (err) {
             logout();
@@ -33,7 +35,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            const res = await axios.post('http://localhost:5005/api/login', { username, password });
+            const res = await axios.post(`${API_URL}/api/login`, { username, password });
             setToken(res.data.token);
             setUser(res.data.user);
             localStorage.setItem('token', res.data.token);
@@ -45,7 +47,7 @@ export const AuthProvider = ({ children }) => {
 
     const signup = async (username, password) => {
         try {
-            await axios.post('http://localhost:5005/api/register', { username, password });
+            await axios.post(`${API_URL}/api/register`, { username, password });
             return { success: true };
         } catch (err) {
             return { success: false, message: err.response?.data?.message || 'Signup failed' };
